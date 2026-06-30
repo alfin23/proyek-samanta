@@ -17,12 +17,11 @@ new class extends Component
         return ProductVariant::query()
                         ->with('product')
                         ->where(function ($query) {
-                            $query->where('color', 'LIKE', '%' . $this->search . '%')
-                                    ->orWhere('size', 'LIKE', '%' . $this->search . '%')
-                                    ->orWhereHas('product', function($subQuery) {
+                            $query->whereHas('product', function($subQuery) {
                                         $subQuery->where('name', 'LIKE', '%' . $this->search . '%');
                                     });
                         })
+                        ->groupBy('product_id')
                         ->latest()
                         ->paginate(10);
     }
@@ -64,36 +63,43 @@ new class extends Component
                     <tr class="bg-base-200/50">
                         <th class="w-20">No</th>
                         <th>Product</th>
-                        <th>Color</th>
-                        <th>Size</th>
-                        <th>Stock</th>
                         <th class="w-44 text-center">Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse ($this->productVariants as $item)
-                        <tr wire:key="pv-row-{{ $item->id }}">
-                            <td>
-                                {{ ($this->productVariants->currentPage() - 1) * $this->productVariants->perPage() + $loop->iteration }}
-                            </td>
-                            <td>{{ $item->product->name }}</td>
-                            <td>{{ $item->color }}</td>
-                            <td>{{ $item->size }}</td>
-                            <td>{{ $item->stock }}</td>
-                            <td class="text-center">
-                                <div class="flex justify-center gap-2">
-                                    <button class="btn btn-sm btn-ghost text-primary">Edit</button>
-                                    <button class="btn btn-sm btn-ghost text-error">Delete</button>
-                                </div>
-                            </td>
-                        </tr>
+                    <tr wire:key="pv-row-{{ $item->id }}">
+                        <td>
+                            {{ ($this->productVariants->currentPage() - 1) * $this->productVariants->perPage() + $loop->iteration }}
+                        </td>
+                        <td>{{ $item->product->name }}</td>
+                        <td class="text-center">
+                            <div class="flex justify-center gap-2">
+                                <a class="btn btn-sm btn-ghost text-primary" href="{{ route('pv.edit', $item->id) }}"
+                                    wire:navigate>Edit</a>
+                                <button class="btn btn-sm btn-ghost text-error">Delete</button>
+                            </div>
+                        </td>
+                    </tr>
                     @empty
-                        <tr colspan="6" class="text-center py-8 text-base-content/50 italic">
-                            No data available.
-                        </tr>
+                    <tr colspan="6" class="text-center py-8 text-base-content/50 italic">
+                        No data available.
+                    </tr>
                     @endforelse
                 </tbody>
             </table>
+
+            <div class="p-4 border-t border-base-200 flex items-center justify-between gap-4 bg-base-50">
+                <div class="text-sm text-base-content/70">
+                    Showing {{ $this->productVariants->firstItem() ?? 0 }} to {{ $this->productVariants->lastItem() ?? 0 }} of
+                    {{ $this->productVariants->total() }} entries
+                </div>
+                @if ($this->productVariants->hasPages())
+                <div>
+                    {{ $this->productVariants->links(data: ['scrollTo' => false]) }}
+                </div>
+                @endif
+            </div>
         </div>
     </div>
 </div>

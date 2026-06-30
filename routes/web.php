@@ -29,4 +29,5 @@ Route::middleware('auth')->group(function () {
     Route::livewire('/supplier', 'pages::master.supplier.index')->name('supplier.index');
     Route::livewire('/product-variants', 'pages::master.product-variants.index')->name('pv.index');
     Route::livewire('/product-variants/add', 'pages::master.product-variants.add')->name('pv.add');
+    Route::livewire('/product-variants/edit/{id}', 'pages::master.product-variants.edit')->name('pv.edit');
 });
