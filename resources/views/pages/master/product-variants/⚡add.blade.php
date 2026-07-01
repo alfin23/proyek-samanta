@@ -13,7 +13,7 @@ new class extends Component
     public $product_id;
 
     public $variants = [
-        ['color' => '', 'size' => '', 'stock' => '']
+        ['color' => '#ffffff', 'size' => '', 'stock' => '']
     ];
 
     public $validationErrors = [];
@@ -31,7 +31,7 @@ new class extends Component
             $this->validate([
                 'product_id' => 'required',
                 'variants' => 'required|array|min:1',
-                'variants.*.color' => 'required|string|max:100',
+                'variants.*.color' => 'required|string|max:100|regex:/^#[a-fA-F0-9]{6}$/',
                 'variants.*.size' => 'required|string|max:100',
                 'variants.*.stock' => 'required|integer|min:0',
             ], [
@@ -67,7 +67,8 @@ new class extends Component
 };
 ?>
 
-<div class="p-4 md:p-8 max-w-7xl mx-auto space-y-6" x-data="variantForm" @saved.window="triggerAlert('Product variants added successfully!', 'alert-success')">
+<div class="p-4 md:p-8 max-w-7xl mx-auto space-y-6" x-data="variantForm"
+    @saved.window="triggerAlert('Product variants added successfully!', 'alert-success')">
 
     <div class="rounded-xl border border-base-200 bg-base-100 shadow-sm p-6 md:p-8">
         <h2 class="text-xl font-bold border-b pb-4 mb-6">Add New Product Variant</h2>
@@ -77,10 +78,11 @@ new class extends Component
                 <label class="label">
                     <span class="label-text font-semibold">Product Name</span>
                 </label>
-                <select class="select select-bordered w-full @error('product_id') input-error @enderror" wire:model="product_id">
+                <select class="select select-bordered w-full @error('product_id') input-error @enderror"
+                    wire:model="product_id">
                     <option value="">Select Product</option>
                     @foreach ($this->products as $key => $value)
-                        <option value="{{ $key }}">{{ $value }}</option>
+                    <option value="{{ $key }}">{{ $value }}</option>
                     @endforeach
                 </select>
                 @error('product_id') <span class="text-error text-sm mt-1">{{ $message }}</span> @enderror
@@ -92,19 +94,22 @@ new class extends Component
 
             <div class="flex flex-wrap gap-4">
                 <template x-for="(variant, index) in variants" :key="index">
-                    <div x-transition class="border border-base-200 rounded-xl p-4 space-y-4 w-full md:w-[calc(33.333%-0.89rem)] relative">
-                        
+                    <div x-transition
+                        class="border border-base-200 rounded-xl p-4 space-y-4 w-full md:w-[calc(33.333%-0.89rem)] relative">
+
                         <div class="form-control w-full">
                             <label class="label">
                                 <span class="label-text font-semibold">Color</span>
                             </label>
-                            <input
-                                type="text"
-                                placeholder="Type color here..."
-                                class="input input-bordered w-full"
-                                :class="getError(index, 'color') ? 'input-error' : ''"
-                                x-model="variant.color"
-                            />
+                            <div class="join w-full">
+                                <input type="color"
+                                    class="input input-bordered join-item w-16 h-12 p-1 cursor-pointer shrink-0"
+                                    :class="getError(index, 'color') ? 'input-error' : ''" x-model="variant.color" />
+
+                                <input type="text" placeholder="#FFFFFF" class="input input-bordered join-item w-full"
+                                    :class="getError(index, 'color') ? 'input-error' : ''" x-model="variant.color"
+                                    maxlength="7" />
+                            </div>
                             <span class="text-error text-xs mt-1" x-text="getError(index, 'color')"></span>
                         </div>
 
@@ -112,13 +117,8 @@ new class extends Component
                             <label class="label">
                                 <span class="label-text font-semibold">Size</span>
                             </label>
-                            <input
-                                type="text"
-                                placeholder="Type size here..."
-                                class="input input-bordered w-full"
-                                :class="getError(index, 'size') ? 'input-error' : ''"
-                                x-model="variant.size"
-                            />
+                            <input type="text" placeholder="Type size here..." class="input input-bordered w-full"
+                                :class="getError(index, 'size') ? 'input-error' : ''" x-model="variant.size" />
                             <span class="text-error text-xs mt-1" x-text="getError(index, 'size')"></span>
                         </div>
 
@@ -126,19 +126,15 @@ new class extends Component
                             <label class="label">
                                 <span class="label-text font-semibold">Stock</span>
                             </label>
-                            <input
-                                type="number"
-                                min="0"
-                                placeholder="Type stock here..."
+                            <input type="number" min="0" placeholder="Type stock here..."
                                 class="input input-bordered w-full"
-                                :class="getError(index, 'stock') ? 'input-error' : ''"
-                                x-model="variant.stock"
-                            />
+                                :class="getError(index, 'stock') ? 'input-error' : ''" x-model="variant.stock" />
                             <span class="text-error text-xs mt-1" x-text="getError(index, 'stock')"></span>
                         </div>
 
                         <template x-if="variants.length > 1">
-                            <button type="button" @click="removeVariant(index)" class="btn btn-error text-white btn-sm mt-2">
+                            <button type="button" @click="removeVariant(index)"
+                                class="btn btn-error text-white btn-sm mt-2">
                                 Remove
                             </button>
                         </template>
@@ -156,8 +152,10 @@ new class extends Component
     {{-- TOAST NOTIFICATION --}}
     <div class="toast toast-end toast-top z-[9999]" x-show="showAlert" x-transition>
         <div class="alert shadow-lg" :class="alertType">
-            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none"
+                viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span x-text="alertMessage" class="text-sm font-medium"></span>
         </div>
@@ -174,7 +172,11 @@ new class extends Component
         alertType: 'alert-success',
 
         addVariant() {
-            this.variants = [...this.variants, { color: '', size: '', stock: '' }];
+            this.variants = [...this.variants, {
+                color: '#ffffff',
+                size: '',
+                stock: ''
+            }];
         },
 
         removeVariant(index) {
@@ -192,8 +194,11 @@ new class extends Component
             this.alertMessage = message;
             this.alertType = type;
             this.showAlert = true;
-            setTimeout(() => { this.showAlert = false }, 3000);
+            setTimeout(() => {
+                this.showAlert = false
+            }, 3000);
         }
     }));
+
 </script>
 @endscript

@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Product;
 use App\Models\ProductVariant;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -12,23 +13,35 @@ new class extends Component
     public string $search = '';
 
     #[Computed]
-    public function productVariants()
+    public function datas()
     {
         return ProductVariant::query()
                         ->with('product')
-                        ->where(function ($query) {
-                            $query->whereHas('product', function($subQuery) {
-                                        $subQuery->where('name', 'LIKE', '%' . $this->search . '%');
-                                    });
+                        ->whereHas('product', function($query) {
+                            $query->where('name', 'LIKE', '%' . $this->search . '%');
                         })
                         ->groupBy('product_id')
                         ->latest()
                         ->paginate(10);
     }
+
+    public function destroy($id)
+    {
+        $productVariant = ProductVariant::where('product_id', $id)->exists();
+
+        if (!$productVariant) {
+            $this->dispatch('error', 'Product variant not found');
+            return;
+        }
+
+        ProductVariant::where('product_id', $id)->delete();
+
+        $this->dispatch('deleted');
+    }
 };
 ?>
 
-<div class="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
+<div x-data="pageComponent" @deleted.window="openDelete = false; triggerAlert('Product variant deleted successfully!', 'alert-error')" class="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
     {{-- No surplus words or unnecessary actions. - Marcus Aurelius --}}
 
     <div
@@ -67,17 +80,17 @@ new class extends Component
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse ($this->productVariants as $item)
+                    @forelse ($this->datas as $item)
                     <tr wire:key="pv-row-{{ $item->id }}">
                         <td>
-                            {{ ($this->productVariants->currentPage() - 1) * $this->productVariants->perPage() + $loop->iteration }}
+                            {{ ($this->datas->currentPage() - 1) * $this->datas->perPage() + $loop->iteration }}
                         </td>
                         <td>{{ $item->product->name }}</td>
                         <td class="text-center">
                             <div class="flex justify-center gap-2">
-                                <a class="btn btn-sm btn-ghost text-primary" href="{{ route('pv.edit', $item->id) }}"
+                                <a class="btn btn-sm btn-ghost text-primary" href="{{ route('pv.edit', $item->product_id) }}"
                                     wire:navigate>Edit</a>
-                                <button class="btn btn-sm btn-ghost text-error">Delete</button>
+                                <a class="btn btn-sm btn-ghost text-error" @click="openDelete = true; deleteId = {{ $item->product_id }}">Delete</a>
                             </div>
                         </td>
                     </tr>
@@ -91,15 +104,67 @@ new class extends Component
 
             <div class="p-4 border-t border-base-200 flex items-center justify-between gap-4 bg-base-50">
                 <div class="text-sm text-base-content/70">
-                    Showing {{ $this->productVariants->firstItem() ?? 0 }} to {{ $this->productVariants->lastItem() ?? 0 }} of
-                    {{ $this->productVariants->total() }} entries
+                    Showing {{ $this->datas->firstItem() ?? 0 }} to {{ $this->datas->lastItem() ?? 0 }} of
+                    {{ $this->datas->total() }} entries
                 </div>
-                @if ($this->productVariants->hasPages())
+                @if ($this->datas->hasPages())
                 <div>
-                    {{ $this->productVariants->links(data: ['scrollTo' => false]) }}
+                    {{ $this->datas->links(data: ['scrollTo' => false]) }}
                 </div>
                 @endif
             </div>
         </div>
     </div>
+
+    <div class="modal" :class="{ 'modal-open': openDelete }" x-show="openDelete" x-transition role="dialog">
+        <div class="modal-box max-w-sm text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-error/10 text-error mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+            </div>
+            <h3 class="text-lg font-bold text-error">Confirm Deletion</h3>
+            <p class="py-2 text-sm text-base-content/70">Are you sure you want to delete this category? This action
+                cannot be undone.</p>
+
+            <div class="modal-action flex justify-center gap-2 border-t pt-3">
+                <button @click="openDelete = false" class="btn btn-ghost">Cancel</button>
+                <button @click="$wire.destroy(deleteId)" class="btn btn-error px-6" wire:loading.attr="disabled">
+                    <span wire:loading wire:target="destroy" class="loading loading-spinner loading-sm"></span>
+                    Yes, Delete
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {{-- TOAST NOTIFICATION --}}
+    <div class="toast toast-end toast-top z-[9999]" x-show="showAlert" x-transition>
+        <div class="alert shadow-lg" :class="alertType">
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span x-text="alertMessage" class="text-sm font-medium"></span>
+        </div>
+    </div>
 </div>
+
+@script
+<script>
+    Alpine.data('pageComponent', () => ({
+        openDelete: false,
+        deleteId: null,
+        showAlert: false,
+        alertMessage: '',
+        alertType: 'alert-success',
+
+        triggerAlert(message, type = 'alert-success') {
+            this.alertMessage = message;
+            this.alertType = type;
+            this.showAlert = true;
+            setTimeout(() => { this.showAlert = false }, 3000);
+        },
+    }));
+</script>
+@endscript

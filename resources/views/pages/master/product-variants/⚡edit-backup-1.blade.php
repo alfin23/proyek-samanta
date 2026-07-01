@@ -26,7 +26,6 @@ new class extends Component
 
         $this->variants = $getVariants->map(function ($item) {
             return [
-                'id' => $item->id,
                 'color' => $item->color,
                 'size' => $item->size,
                 'stock' => $item->stock,
@@ -66,46 +65,26 @@ new class extends Component
         }
 
         DB::transaction(function () {
-            // 1. Ambil semua ID variant baru yang dikirim dari form/request
-            // Menggunakan collect() untuk mempermudah mengambil id yang tidak null
-            $keepVariantIds = collect($this->variants)->pluck('id')->filter()->toArray();
+            ProductVariant::where('product_id', $this->product_id)->delete();                
 
-            // 2. Hapus otomatis : Hapus data di DB yang ID-nya tidak ada di dalam data baru
-            ProductVariant::where('product_id', $this->product_id)
-            ->whereNotIn('id', $keepVariantIds)
-            ->delete();
-
-            // 3. loop untuk update atau create
+            $dataToInsert = [];
             foreach ($this->variants as $variant) {
-                ProductVariant::updateOrCreate(
-                    // Kondisi pencarian (cek berdasarkan ID varian
-                    [
-                        'id' => $variant['id'] ?? null
-                    ],
-                    // Data yang diupdate atau dibuat baru
-                    [
-                        'product_id' => $this->product_id,
-                        'color'      => $variant['color'],
-                        'size'       => $variant['size'],
-                        'stock'      => $variant['stock'],
-                    ]
-                );
+                $dataToInsert[] = [
+                    'product_id' => $this->product_id,
+                    'color' => $variant['color'],
+                    'size' => $variant['size'],
+                    'stock' => $variant['stock'],
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ];
             }
+
+            ProductVariant::insert($dataToInsert);
         });
 
         $this->dispatch('updated');
-        $this->reset('validationErrors');
-
-        // Muat ulang data variants terbaru dari database agar tampilan sinkron
-        $getVariants = ProductVariant::where('product_id', $this->product_id)->get();
-        $this->variants = $getVariants->map(function ($item) {
-            return [
-                'id' => $item->id,
-                'color' => $item->color,
-                'size' => $item->size,
-                'stock' => $item->stock,
-            ];
-        })->toArray();
+        $this->reset(['product_id', 'variants', 'validationErrors']);
+        $this->variants = [['color' => '', 'size' => '', 'stock' => '']];
     }
 };
 ?>
